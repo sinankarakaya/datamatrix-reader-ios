@@ -130,10 +130,8 @@ class CameraFeedManager: NSObject {
    This method resumes an interrupted AVCaptureSession.
    */
   func resumeInterruptedSession(withCompletion completion: @escaping (Bool) -> ()) {
-
     sessionQueue.async {
       self.startSession()
-
       DispatchQueue.main.async {
         completion(self.isSessionRunning)
       }

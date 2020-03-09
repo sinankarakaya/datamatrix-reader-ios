@@ -21,7 +21,6 @@ class ViewController: UIViewController {
   @IBOutlet weak var overlayView: OverlayView!
   @IBOutlet weak var resumeButton: UIButton!
   @IBOutlet weak var cameraUnavailableLabel: UILabel!
-
   @IBOutlet weak var bottomSheetStateImageView: UIImageView!
   @IBOutlet weak var bottomSheetView: UIView!
   @IBOutlet weak var bottomSheetViewBottomSpace: NSLayoutConstraint!
@@ -74,7 +73,6 @@ class ViewController: UIViewController {
 
   override func viewWillDisappear(_ animated: Bool) {
     super.viewWillDisappear(animated)
-
     cameraFeedManager.stopSession()
   }
 
@@ -84,9 +82,7 @@ class ViewController: UIViewController {
 
   // MARK: Button Actions
   @IBAction func onClickResumeButton(_ sender: Any) {
-
     cameraFeedManager.resumeInterruptedSession { (complete) in
-
       if complete {
         self.resumeButton.isHidden = true
         self.cameraUnavailableLabel.isHidden = true
@@ -104,7 +100,6 @@ class ViewController: UIViewController {
       preferredStyle: .alert
     )
     alert.addAction(UIAlertAction(title: "OK", style: .default, handler: nil))
-
     self.present(alert, animated: true)
   }
 
@@ -113,39 +108,17 @@ class ViewController: UIViewController {
     super.prepare(for: segue, sender: sender)
 
     if segue.identifier == "EMBED" {
-
       guard let tempModelDataHandler = modelDataHandler else {
         return
       }
       inferenceViewController = segue.destination as? InferenceViewController
       inferenceViewController?.wantedInputHeight = tempModelDataHandler.inputHeight
       inferenceViewController?.wantedInputWidth = tempModelDataHandler.inputWidth
-      inferenceViewController?.threadCountLimit = tempModelDataHandler.threadCountLimit
-      inferenceViewController?.currentThreadCount = tempModelDataHandler.threadCount
-      inferenceViewController?.delegate = self
-
-      guard let tempResult = result else {
-        return
-      }
-      inferenceViewController?.inferenceTime = tempResult.inferenceTime
-
     }
   }
 }
 
-// MARK: InferenceViewControllerDelegate Methods
-extension ViewController: InferenceViewControllerDelegate {
 
-  func didChangeThreadCount(to count: Int) {
-    if modelDataHandler?.threadCount == count { return }
-    modelDataHandler = ModelDataHandler(
-      modelFileInfo: MobileNetSSD.modelInfo,
-      labelsFileInfo: MobileNetSSD.labelsInfo,
-      threadCount: count
-    )
-  }
-
-}
 
 // MARK: CameraFeedManagerDelegate Methods
 extension ViewController: CameraFeedManagerDelegate {
@@ -156,13 +129,10 @@ extension ViewController: CameraFeedManagerDelegate {
 
   // MARK: Session Handling Alerts
   func sessionRunTimeErrorOccured() {
-
-    // Handles session run time error by updating the UI and providing a button if session can be manually resumed.
     self.resumeButton.isHidden = false
   }
 
   func sessionWasInterrupted(canResumeManually resumeManually: Bool) {
-
     // Updates the UI when session is interupted.
     if resumeManually {
       self.resumeButton.isHidden = false
@@ -173,8 +143,6 @@ extension ViewController: CameraFeedManagerDelegate {
   }
 
   func sessionInterruptionEnded() {
-
-    // Updates UI once session interruption has ended.
     if !self.cameraUnavailableLabel.isHidden {
       self.cameraUnavailableLabel.isHidden = true
     }
@@ -185,16 +153,13 @@ extension ViewController: CameraFeedManagerDelegate {
   }
 
   func presentVideoConfigurationErrorAlert() {
-
     let alertController = UIAlertController(title: "Confirguration Failed", message: "Configuration of camera has failed.", preferredStyle: .alert)
     let okAction = UIAlertAction(title: "OK", style: .cancel, handler: nil)
     alertController.addAction(okAction)
-
     present(alertController, animated: true, completion: nil)
   }
 
   func presentCameraPermissionsDeniedAlert() {
-
     let alertController = UIAlertController(title: "Camera Permissions Denied", message: "Camera permissions have been denied for this app. You can change this by going to Settings", preferredStyle: .alert)
 
     let cancelAction = UIAlertAction(title: "Cancel", style: .cancel, handler: nil)
@@ -205,24 +170,11 @@ extension ViewController: CameraFeedManagerDelegate {
 
     alertController.addAction(cancelAction)
     alertController.addAction(settingsAction)
-
     present(alertController, animated: true, completion: nil)
-
   }
 
-  /** This method runs the live camera pixelBuffer through tensorFlow to get the result.
-   */
+
   @objc  func runModel(onPixelBuffer pixelBuffer: CVPixelBuffer) {
-
-    // Run the live camera pixelBuffer through tensorFlow to get the result
-
-    let currentTimeMs = Date().timeIntervalSince1970 * 1000
-
-    guard  (currentTimeMs - previousInferenceTimeMs) >= delayBetweenInferencesMs else {
-      return
-    }
-
-    previousInferenceTimeMs = currentTimeMs
     result = self.modelDataHandler?.runModel(onFrame: pixelBuffer)
 
     guard let displayResult = result else {
@@ -233,25 +185,12 @@ extension ViewController: CameraFeedManagerDelegate {
     let height = CVPixelBufferGetHeight(pixelBuffer)
 
     DispatchQueue.main.async {
-
-      // Display results by handing off to the InferenceViewController
       self.inferenceViewController?.resolution = CGSize(width: width, height: height)
-
-      var inferenceTime: Double = 0
-      if let resultInferenceTime = self.result?.inferenceTime {
-        inferenceTime = resultInferenceTime
-      }
-      self.inferenceViewController?.inferenceTime = inferenceTime
-      self.inferenceViewController?.tableView.reloadData()
-
-      // Draws the bounding boxes and displays class names and confidence scores.
       self.drawAfterPerformingCalculations(onInferences: displayResult.inferences, withImageSize: CGSize(width: CGFloat(width), height: CGFloat(height)))
     }
   }
 
-  /**
-   This method takes the results, translates the bounding box rects to the current view, draws the bounding boxes, classNames and confidence scores of inferences.
-   */
+
   func drawAfterPerformingCalculations(onInferences inferences: [Inference], withImageSize imageSize:CGSize) {
 
     self.overlayView.objectOverlays = []
@@ -264,8 +203,6 @@ extension ViewController: CameraFeedManagerDelegate {
     var objectOverlays: [ObjectOverlay] = []
 
     for inference in inferences {
-
-      // Translates bounding box rect to current view.
       var convertedRect = inference.rect.applying(CGAffineTransform(scaleX: self.overlayView.bounds.size.width / imageSize.width, y: self.overlayView.bounds.size.height / imageSize.height))
 
       if convertedRect.origin.x < 0 {
@@ -302,28 +239,19 @@ extension ViewController: CameraFeedManagerDelegate {
   /** Calls methods to update overlay view with detected bounding boxes and class names.
    */
   func draw(objectOverlays: [ObjectOverlay]) {
-
     self.overlayView.objectOverlays = objectOverlays
     self.overlayView.setNeedsDisplay()
   }
-
 }
 
 // MARK: Bottom Sheet Interaction Methods
 extension ViewController {
 
-  // MARK: Bottom Sheet Interaction Methods
-  /**
-   This method adds a pan gesture to make the bottom sheet interactive.
-   */
   private func addPanGesture() {
     let panGesture = UIPanGestureRecognizer(target: self, action: #selector(ViewController.didPan(panGesture:)))
     bottomSheetView.addGestureRecognizer(panGesture)
   }
 
-
-  /** Change whether bottom sheet should be in expanded or collapsed state.
-   */
   private func changeBottomViewState() {
 
     guard let inferenceVC = inferenceViewController else {
@@ -331,7 +259,6 @@ extension ViewController {
     }
 
     if bottomSheetViewBottomSpace.constant == inferenceVC.collapsedHeight - bottomSheetView.bounds.size.height {
-
       bottomSheetViewBottomSpace.constant = 0.0
     }
     else {
@@ -340,9 +267,6 @@ extension ViewController {
     setImageBasedOnBottomViewState()
   }
 
-  /**
-   Set image of the bottom sheet icon based on whether it is expanded or collapsed
-   */
   private func setImageBasedOnBottomViewState() {
 
     if bottomSheetViewBottomSpace.constant == 0.0 {
@@ -353,9 +277,6 @@ extension ViewController {
     }
   }
 
-  /**
-   This method responds to the user panning on the bottom sheet.
-   */
   @objc func didPan(panGesture: UIPanGestureRecognizer) {
 
     // Opens or closes the bottom sheet based on the user's interaction with the bottom sheet.
@@ -378,9 +299,6 @@ extension ViewController {
     }
   }
 
-  /**
-   This method sets bottom sheet translation while pan gesture state is continuously changing.
-   */
   private func translateBottomSheet(withVerticalTranslation verticalTranslation: CGFloat) {
 
     let bottomSpace = initialBottomSpace - verticalTranslation
@@ -390,22 +308,13 @@ extension ViewController {
     setBottomSheetLayout(withBottomSpace: bottomSpace)
   }
 
-  /**
-   This method changes bottom sheet state to either fully expanded or closed at the end of pan.
-   */
   private func translateBottomSheetAtEndOfPan(withVerticalTranslation verticalTranslation: CGFloat) {
-
-    // Changes bottom sheet state to either fully open or closed at the end of pan.
     let bottomSpace = bottomSpaceAtEndOfPan(withVerticalTranslation: verticalTranslation)
     setBottomSheetLayout(withBottomSpace: bottomSpace)
   }
 
-  /**
-   Return the final state of the bottom sheet view (whether fully collapsed or expanded) that is to be retained.
-   */
   private func bottomSpaceAtEndOfPan(withVerticalTranslation verticalTranslation: CGFloat) -> CGFloat {
 
-    // Calculates whether to fully expand or collapse bottom sheet when pan gesture ends.
     var bottomSpace = initialBottomSpace - verticalTranslation
 
     var height: CGFloat = 0.0
@@ -435,7 +344,6 @@ extension ViewController {
    This method layouts the change of the bottom space of bottom sheet with respect to the view managed by this controller.
    */
   func setBottomSheetLayout(withBottomSpace bottomSpace: CGFloat) {
-
     view.setNeedsLayout()
     bottomSheetViewBottomSpace.constant = bottomSpace
     view.setNeedsLayout()

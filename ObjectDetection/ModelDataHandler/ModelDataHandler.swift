@@ -63,28 +63,15 @@ class ModelDataHandler: NSObject {
 
   /// TensorFlow Lite `Interpreter` object for performing inference on a given model.
   private var interpreter: Interpreter
-
   private let bgraPixel = (channels: 4, alphaComponent: 3, lastBgrComponent: 2)
   private let rgbPixelChannels = 3
-  private let colorStrideValue = 10
-  private let colors = [
-    UIColor.red,
-    UIColor(displayP3Red: 90.0/255.0, green: 200.0/255.0, blue: 250.0/255.0, alpha: 1.0),
-    UIColor.green,
-    UIColor.orange,
-    UIColor.blue,
-    UIColor.purple,
-    UIColor.magenta,
-    UIColor.yellow,
-    UIColor.cyan,
-    UIColor.brown
-  ]
+ 
 
   // MARK: - Initialization
 
   /// A failable initializer for `ModelDataHandler`. A new instance is created if the model and
   /// labels files are successfully loaded from the app's main bundle. Default `threadCount` is 1.
-  init?(modelFileInfo: FileInfo, labelsFileInfo: FileInfo, threadCount: Int = 1) {
+  init?(modelFileInfo: FileInfo, labelsFileInfo: FileInfo, threadCount: Int = 2) {
     let modelFilename = modelFileInfo.name
 
     // Construct the path to the model file.
@@ -98,7 +85,7 @@ class ModelDataHandler: NSObject {
 
     // Specify the options for the `Interpreter`.
     self.threadCount = threadCount
-    var options = InterpreterOptions()
+    var options = Interpreter.Options()
     options.threadCount = threadCount
     do {
       // Create the `Interpreter`.
@@ -220,7 +207,7 @@ class ModelDataHandler: NSObject {
       let newRect = rect.applying(CGAffineTransform(scaleX: width, y: height))
 
       // Gets the color assigned for the class
-      let colorToAssign = colorForClass(withIndex: outputClassIndex + 1)
+      let colorToAssign = UIColor.blue //colorForClass(withIndex: outputClassIndex + 1)
       let inference = Inference(confidence: score,
                                 className: outputClass,
                                 rect: newRect,
@@ -321,23 +308,7 @@ class ModelDataHandler: NSObject {
     return Data(copyingBufferOf: floats)
   }
 
-  /// This assigns color for a particular class.
-  private func colorForClass(withIndex index: Int) -> UIColor {
 
-    // We have a set of colors and the depending upon a stride, it assigns variations to of the base
-    // colors to each object based on its index.
-    let baseColor = colors[index % colors.count]
-
-    var colorToAssign = baseColor
-
-    let percentage = CGFloat((colorStrideValue / 2 - index / colors.count) * colorStrideValue)
-
-    if let modifiedColor = baseColor.getModified(byPercentage: percentage) {
-      colorToAssign = modifiedColor
-    }
-
-    return colorToAssign
-  }
 }
 
 // MARK: - Extensions
